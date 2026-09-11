@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IRIAMイベントカレンダー（ランクアップ早期切り替え対応版）</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --block1-bg: rgba(147, 51, 234, 0.25);
+      --block1-border: #9333ea;
+      --block1-text: #1f2937;
+      --block2-bg: rgba(37, 99, 235, 0.25);
+      --block2-border: #2563eb;
+      --block2-text: #1f2937;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #f3f4f6;
+      color: #1f2937;
+      padding: 10px;
+      min-height: 100vh;
+    }
+
+    .main-wrapper {
+      max-width: 1050px;
+      margin: 0 auto;
+    }
+
+    .external-controls {
+      background: #ffffff;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 12px;
+    }
+
+    .status-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 12px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .status-item {
+      text-align: center;
+      background: #ffffff;
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #edf2f7;
+    }
+
+    .status-item:nth-child(1),
+    .status-item:nth-child(2) {
+      grid-column: span 2;
+    }
+
+    .status-item .label {
+      font-size: 0.7rem;
+      color: #4b5563;
+      font-weight: bold;
+    }
+
+    .status-item .val {
+      font-size: 0.95rem;
+      font-weight: bold;
+      color: #111827;
+      word-break: break-all;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 6px;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      font-size: 0.8rem;
+    }
+    .badge-down { background-color: #ef4444; }
+    .badge-keep { background-color: #10b981; }
+    .badge-up   { background-color: #3b82f6; }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    @media (min-width: 480px) {
+      .controls-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .status-card {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .status-item:nth-child(1),
+      .status-item:nth-child(2) {
+        grid-column: span 1;
+      }
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .control-group label {
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: #4b5563;
+    }
+
+    .control-group input, .control-group select {
+      padding: 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      background: #ffffff;
+      width: 100%;
+    }
+
+    .export-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #eff6ff;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #bfdbfe;
+    }
+
+    .export-options {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #1e40af;
+    }
+
+    .export-options label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .btn {
+      padding: 8px 14px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: background 0.2s;
+      width: 100%;
+      text-align: center;
+    }
+
+    @media (min-width: 480px) {
+      .export-row {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .export-options {
+        flex-direction: row;
+        gap: 12px;
+      }
+      .btn {
+        width: auto;
+      }
+    }
+
+    .btn:hover { background: #2563eb; }
+    .btn-secondary { background: #6b7280; }
+    .btn-secondary:hover { background: #4b5563; }
+    .btn-success { background: #10b981; }
+    .btn-success:hover { background: #059669; }
+    .btn-danger { background: #ef4444; }
+    .btn-danger:hover { background: #dc2626; }
+
+    .calendar-card {
+      position: relative;
+      background-color: #ffffff;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .card-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      margin-bottom: 12px;
+      text-align: center;
+      color: #111827;
+    }
+
+    .nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 5px;
+    }
+
+    .nav-btns {
+      display: flex;
+      gap: 4px;
+    }
+
+    .nav-btns .btn {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+
+    .month-title {
+      font-size: 1.05rem;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .calendar-container {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .calendar {
+      width: 100%;
+      min-width: 320px;
+      border-collapse: collapse;
+      table-layout: fixed;
+      background: rgba(255, 255, 255, 0.8);
+    }
+
+    .calendar th {
+      background: rgba(243, 244, 246, 0.9);
+      padding: 4px 2px;
+      font-size: 0.75rem;
+      border: 1px solid #d1d5db;
+      text-align: center;
+    }
+
+    .calendar td {
+      border: 1px solid #d1d5db;
+      vertical-align: top;
+      height: 115px;
+      padding: 2px;
+      position: relative;
+      background: rgba(255, 255, 255, 0.7);
+      box-sizing: border-box;
+      cursor: pointer;
+      transition: box-shadow 0.2s, border 0.2s;
+    }
+
+    .calendar td:hover {
+      background: rgba(243, 244, 246, 0.9);
+    }
+
+    .cell-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1px;
+    }
+
+    .day-num {
+      font-weight: bold;
+      font-size: 0.7rem;
+      line-height: 1 !important;
+      display: inline-block;
+      text-align: center;
+      padding: 2px 4px;
+      min-width: 1.4em;
+      box-sizing: border-box;
+      overflow: visible !important;
+      vertical-align: middle;
+    }
+
+    .today .day-num {
+      background: #ef4444;
+      color: white;
+      border-radius: 3px;
+    }
+
+    .fire-btn {
+      cursor: pointer;
+      font-size: 0.75rem;
+      user-select: none;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+      padding: 0 1px;
+    }
+    .fire-btn:hover { opacity: 1.0; }
+
+    .pass-count-tag {
+      font-size: 0.6rem;
+      color: #047857;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      padding: 1px 2px;
+      border-radius: 3px;
+      margin-bottom: 1px;
+      text-align: center;
+      font-weight: 500;
+      line-height: 1.1;
+    }
+
+    .inputs-row {
+      display: flex;
+      gap: 1px;
+      margin-bottom: 1px;
+    }
+
+    .select-plus {
+      flex: 1;
+      font-size: 0.7rem;
+      padding: 1px 0;
+      border: 1px solid #9ca3af;
+      border-radius: 3px;
+      background: #fff;
+    }
+
+    .skip-label {
+      font-size: 0.65rem;
+      display: flex;
+      align-items: center;
+      gap: 1px;
+      cursor: pointer;
+      background: #f3f4f6;
+      padding: 0 2px;
+      border-radius: 3px;
+      border: 1px solid #d1d5db;
+      user-select: none;
+    }
+
+    .event-tag {
+      background: #fef3c7;
+      border-left: 2px solid #f59e0b;
+      color: #92400e;
+      font-size: 0.6rem;
+      padding: 1px 2px;
+      margin-bottom: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border-radius: 2px;
+    }
+
+    .memo-input {
+      width: 100%;
+      height: 30px;
+      font-size: 0.65rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 3px;
+      resize: none;
+      padding: 2px;
+      background: rgba(255, 255, 255, 0.85);
+      box-sizing: border-box;
+    }
+
+    .memo-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      background: #ffffff;
+    }
+
+    .bg-block-1 {
+      background-color: var(--block1-bg) !important;
+      border: 2px solid var(--block1-border) !important;
+      color: var(--block1-text);
+    }
+    .bg-block-2 {
+      background-color: var(--block2-bg) !important;
+      border: 2px solid var(--block2-border) !important;
+      color: var(--block2-text);
+    }
+    
+    .selected-block {
+      box-shadow: inset 0 0 0 2px #111827 !important;
+    }
+
+    .other-month {
+      opacity: 0.4;
+    }
+
+    .hide-block-colors .bg-block-1,
+    .hide-block-colors .bg-block-2,
+    .hide-block-colors .custom-cell-painted {
+      background-color: rgba(255, 255, 255, 0.7) !important;
+      border: 1px solid #d1d5db !important;
+    }
+
+    .hide-pass-info .pass-count-tag,
+    .hide-pass-info .skip-label {
+      display: none !important;
+    }
+
+    .print-plus-badge {
+      flex: 1;
+      font-size: 0.7rem;
+      font-weight: bold;
+      text-align: center;
+      background: #ffffff;
+      border: 1px solid #9ca3af;
+      border-radius: 3px;
+      padding: 1px 0;
+      line-height: 1.1;
+    }
+
+    .print-skip-badge {
+      font-size: 0.65rem;
+      font-weight: bold;
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-radius: 3px;
+      padding: 1px 2px;
+      line-height: 1.1;
+    }
+
+    .capturing .day-num {
+      font-family: Arial, sans-serif !important;
+      transform: none !important;
+      letter-spacing: 0px !important;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      padding: 15px;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 320px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    .modal h3 { font-size: 1rem; margin-bottom: 8px; }
+    .modal-field { margin-bottom: 8px; }
+    .modal-field label { display: block; font-size: 0.75rem; margin-bottom: 2px; }
+    .modal-field input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+    .modal-btns { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
+    .modal-btns .btn { width: auto; padding: 6px 10px; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+
+<div class="main-wrapper">
+  
+  <div class="external-controls">
+    
+    <div class="status-card">
+      <div class="status-item">
+        <div class="label">選択中の計算期間</div>
+        <div class="val" id="currentPeriodDisplay">----/--/-- 〜 ----/--/--</div>
+      </div>
+      <div class="status-item">
+        <div class="label">現在の集計終了日（パス・スキップ反映）</div>
+        <div class="val" id="currentKeepEndDisplay">----/--/--</div>
+      </div>
+      <div class="status-item">
+        <div class="label">期間内 ＋合計 / 時給</div>
+        <div class="val" id="periodPlusSum">＋0 (0ダイヤ)</div>
+      </div>
+      <div class="status-item">
+        <div class="label">ランク判定・翌日からの連動</div>
+        <div class="val"><span id="rankJudgement" class="badge badge-down">判定なし</span></div>
+      </div>
+    </div>
+
+    <div class="controls-grid">
+      <div class="control-group">
+        <label for="rankSelect">初期ランク（自動変動対応）</label>
+        <input type="text" id="rankSelect" placeholder="例: B3" value="B3">
+      </div>
+      <div class="control-group">
+        <label for="startDate">集計開始日</label>
+        <input type="date" id="startDate">
+      </div>
+      <div class="control-group">
+        <label for="initialSkipCount">開始日時点のパス枚数 (最大10)</label>
+        <input type="number" id="initialSkipCount" min="0" max="10" value="0">
+      </div>
+    </div>
+
+    <div class="export-row">
+      <div class="export-options">
+        <span>【PNG保存設定】</span>
+        <label><input type="checkbox" id="exportShowColors" checked> 集計期間・マスの色付けを出力</label>
+        <label><input type="checkbox" id="exportShowPassInfo" checked> スキップパス情報を出力</label>
+      </div>
+      <button class="btn btn-success" id="savePngBtn">カレンダーのみ画像保存</button>
+    </div>
+  </div>
+
+  <div class="calendar-card" id="captureTarget">
+    <div class="card-content">
+      <h1>IRIAM イベントカレンダー</h1>
+
+      <div class="nav-bar">
+        <div class="nav-btns">
+          <button class="btn" id="prevMonthBtn">前月</button>
+          <button class="btn btn-secondary" id="todayBtn">今月</button>
+          <button class="btn" id="nextMonthBtn">翌月</button>
+        </div>
+        <div class="month-title" id="calendarTitle">2026年 8月</div>
+        <div></div>
+      </div>
+
+      <div class="calendar-container">
+        <table class="calendar" id="calendarTable">
+          <thead>
+            <tr>
+              <th>月</th>
+              <th>火</th>
+              <th>水</th>
+              <th>木</th>
+              <th>金</th>
+              <th>土</th>
+              <th>日</th>
+            </tr>
+          </thead>
+          <tbody id="calendarBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay hidden" id="eventModal">
+  <div class="modal">
+    <h3 id="modalTitle">ガチイベ登録</h3>
+    <div class="modal-field">
+      <label>イベント名</label>
+      <input type="text" id="eventNameInput" placeholder="イベント名を入力">
+    </div>
+    <div class="modal-field">
+      <label>開始日時</label>
+      <input type="text" id="eventStartDisplay" readonly style="background:#eee;">
+    </div>
+    <div class="modal-field">
+      <label>終了日時</label>
+      <input type="text" id="eventEndDisplay" readonly style="background:#eee;">
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary btn-danger" id="deleteEventBtn" style="display:none;">削除</button>
+      <button class="btn btn-secondary" id="closeModalBtn">キャンセル</button>
+      <button class="btn" id="saveEventBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'iriam_event_calendar_data_v9';
+
+  const HOURLY_DIAMONDS = {
+    "S3": 2300,
+    "S2": 2000,
+    "S1": 1700,
+    "A3": 1300,
+    "A2": 1000,
+    "A1": 700,
+    "B3": 300,
+    "B2": 200,
+    "B1": 100,
+    "C5": 0, "C4": 0, "C3": 0, "C2": 0, "C1": 0,
+    "D": 0
+  };
+
+  const RANK_HIERARCHY = [
+    "D",
+    "C1", "C2", "C3", "C4", "C5",
+    "B1", "B2", "B3",
+    "A1", "A2", "A3",
+    "S1", "S2", "S3"
+  ];
+
+  function getNextRank(current) {
+    const cleanCur = current.toUpperCase();
+    const idx = RANK_HIERARCHY.indexOf(cleanCur);
+    if (idx !== -1 && idx < RANK_HIERARCHY.length - 1) {
+      return RANK_HIERARCHY[idx + 1];
+    }
+    return current;
+  }
+
+  function getPrevRank(current) {
+    const cleanCur = current.toUpperCase();
+    const idx = RANK_HIERARCHY.indexOf(cleanCur);
+    if (idx > 0) {
+      return RANK_HIERARCHY[idx - 1];
+    }
+    return current;
+  }
+
+  function getHourlyDiamond(rank) {
+    const clean = rank.toUpperCase();
+    if (HOURLY_DIAMONDS[clean] !== undefined) {
+      return HOURLY_DIAMONDS[clean];
+    }
+    return 0;
+  }
+
+  let state = {
+    rank: 'B3',
+    startDate: '', 
+    initialSkipCount: 0,
+    plusData: {}, 
+    skipsUsed: {}, 
+    memos: {}, 
+    events: [],
+    cellColors: {} 
+  };
+
+  let currentYear, currentMonth;
+  let activeEditingEventId = null;
+  let activeFireDate = null;
+  let selectedTargetDate = new Date();
+
+  window.addEventListener('DOMContentLoaded', () => {
+    loadState();
+
+    const today = new Date();
+    currentYear = today.getFullYear();
+    currentMonth = today.getMonth() + 1;
+
+    if (!state.startDate) {
+      state.startDate = formatDateStr(today);
+    }
+
+    document.getElementById('rankSelect').value = state.rank;
+    document.getElementById('startDate').value = state.startDate;
+    document.getElementById('initialSkipCount').value = state.initialSkipCount;
+
+    document.getElementById('rankSelect').addEventListener('input', (e) => {
+      state.rank = e.target.value;
+      saveState();
+      render();
+    });
+
+    document.getElementById('startDate').addEventListener('change', (e) => {
+      state.startDate = e.target.value;
+      saveState();
+      render();
+    });
+
+    document.getElementById('initialSkipCount').addEventListener('input', (e) => {
+      let val = parseInt(e.target.value) || 0;
+      if (val < 0) val = 0;
+      if (val > 10) val = 10;
+      state.initialSkipCount = val;
+      e.target.value = val;
+      saveState();
+      render();
+    });
+
+    document.getElementById('prevMonthBtn').addEventListener('click', () => {
+      currentMonth--;
+      if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+      render();
+    });
+
+    document.getElementById('nextMonthBtn').addEventListener('click', () => {
+      currentMonth++;
+      if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+      render();
+    });
+
+    document.getElementById('todayBtn').addEventListener('click', () => {
+      const now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth() + 1;
+      selectedTargetDate = new Date(now);
+      render();
+    });
+
+    document.getElementById('savePngBtn').addEventListener('click', saveAsPNG);
+    document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+    document.getElementById('saveEventBtn').addEventListener('click', saveEventModal);
+    document.getElementById('deleteEventBtn').addEventListener('click', deleteEventModal);
+
+    render();
+  });
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function loadState() {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (data) {
+      try {
+        state = Object.assign(state, JSON.parse(data));
+        if (!state.cellColors) state.cellColors = {};
+      } catch(e) {
+        console.error('Failed to load state', e);
+      }
+    }
+  }
+
+  function formatDateStr(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function parseDateStr(str) {
+    if (!str) return new Date();
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  function addDays(date, days) {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+  }
+
+  function computePassCountMap(untilDate) {
+    const baseStart = parseDateStr(state.startDate);
+    const passMap = {};
+    let currentPasses = Math.min(10, Math.max(0, state.initialSkipCount || 0));
+
+    if (untilDate < baseStart) {
+      passMap[formatDateStr(untilDate)] = currentPasses;
+      return passMap;
+    }
+
+    let d = new Date(baseStart);
+    while (d <= untilDate) {
+      const dStr = formatDateStr(d);
+      
+      const dayOfWeek = d.getDay(); 
+      if (dayOfWeek === 1 && dStr !== state.startDate) {
+        if (currentPasses < 10) {
+          currentPasses += 1;
+        }
+      }
+
+      if (state.skipsUsed[dStr]) {
+        if (currentPasses > 0) {
+          currentPasses -= 1;
+        }
+      }
+
+      passMap[dStr] = currentPasses;
+      d = addDays(d, 1);
+    }
+    return passMap;
+  }
+
+  function getAllBlocksWithAutoRank() {
+    const baseStart = parseDateStr(state.startDate);
+    let currentBlockStart = new Date(baseStart);
+    let currentRank = state.rank;
+    let blockIndex = 0;
+    const blocks = [];
+
+    while (blockIndex < 500) {
+      let validDaysCount = 0;
+      let skipsInBlock = 0;
+      let d = new Date(currentBlockStart);
+      let extendedEnd = new Date(currentBlockStart);
+      
+      let plusSum = 0;
+      let earlyEnded = false;
+
+      while (validDaysCount < 7) {
+        const dStr = formatDateStr(d);
+        
+        if (!state.skipsUsed[dStr]) {
+          validDaysCount++;
+          plusSum += (state.plusData[dStr] !== undefined ? state.plusData[dStr] : 0);
+        } else {
+          skipsInBlock++;
+        }
+
+        extendedEnd = new Date(d);
+
+        if (plusSum >= 18) {
+          earlyEnded = true;
+          break;
+        }
+
+        if (validDaysCount < 7) {
+          d = addDays(d, 1);
+        }
+      }
+
+      const baseEnd = addDays(currentBlockStart, 6);
+
+      const blockInfo = {
+        blockIndex: blockIndex,
+        rank: currentRank,
+        blockStart: new Date(currentBlockStart),
+        baseEnd: baseEnd,
+        extendedEnd: extendedEnd,
+        skipsInBlock: skipsInBlock,
+        plusSum: plusSum,
+        colorClass: (blockIndex % 2 === 0) ? 'bg-block-1' : 'bg-block-2'
+      };
+
+      blocks.push(blockInfo);
+
+      const nextBlockStart = addDays(extendedEnd, 1);
+
+      if (plusSum >= 18) {
+        currentRank = getNextRank(currentRank);
+      } else if (plusSum <= 11) {
+        currentRank = getPrevRank(currentRank);
+      }
+
+      currentBlockStart = nextBlockStart;
+      blockIndex++;
+
+      if (currentBlockStart.getFullYear() > new Date().getFullYear() + 2) break;
+    }
+
+    return blocks;
+  }
+
+  function getBlockInfoForDate(targetDate) {
+    const blocks = getAllBlocksWithAutoRank();
+    for (const b of blocks) {
+      if (targetDate >= b.blockStart && targetDate <= b.extendedEnd) {
+        return b;
+      }
+    }
+    return null;
+  }
+
+  function render() {
+    document.getElementById('calendarTitle').textContent = `${currentYear}年 ${currentMonth}月`;
+
+    const body = document.getElementById('calendarBody');
+    body.innerHTML = '';
+
+    const todayStr = formatDateStr(new Date());
+
+    const firstDayOfMonth = new Date(currentYear, currentMonth - 1, 1);
+    let dayOfWeek = firstDayOfMonth.getDay();
+    let monthStartDiff = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+    const calendarStartDate = addDays(firstDayOfMonth, -monthStartDiff);
+
+    const calendarEndDate = addDays(calendarStartDate, 41);
+
+    const passMap = computePassCountMap(calendarEndDate);
+    const selectedBlockInfo = getBlockInfoForDate(selectedTargetDate);
+
+    let currDate = new Date(calendarStartDate);
+
+    for (let row = 0; row < 6; row++) {
+      const tr = document.createElement('tr');
+      for (let col = 0; col < 7; col++) {
+        const td = document.createElement('td');
+        const dateStr = formatDateStr(currDate);
+        const thisCellDate = new Date(currDate);
+        const isCurrentMonth = currDate.getMonth() === (currentMonth - 1);
+
+        if (!isCurrentMonth) {
+          td.classList.add('other-month');
+        }
+
+        if (dateStr === todayStr) {
+          td.classList.add('today');
+        }
+
+        const customPaint = state.cellColors[dateStr];
+        if (customPaint) {
+          td.style.backgroundColor = customPaint.bg;
+          td.style.border = `2px solid ${customPaint.border}`;
+          td.classList.add('custom-cell-painted');
+        } else {
+          const blockInfo = getBlockInfoForDate(currDate);
+          if (blockInfo) {
+            td.classList.add(blockInfo.colorClass);
+          }
+        }
+
+        if (selectedBlockInfo && 
+            currDate >= selectedBlockInfo.blockStart && 
+            currDate <= selectedBlockInfo.extendedEnd) {
+          td.classList.add('selected-block');
+        }
+
+        td.onclick = () => {
+          selectedTargetDate = new Date(thisCellDate);
+          render();
+        };
+
+        const cellHeader = document.createElement('div');
+        cellHeader.className = 'cell-header';
+
+        const dayNum = document.createElement('span');
+        dayNum.className = 'day-num';
+        dayNum.textContent = currDate.getDate();
+        cellHeader.appendChild(dayNum);
+
+        if (col === 1) { 
+          const fireBtn = document.createElement('span');
+          fireBtn.className = 'fire-btn';
+          fireBtn.textContent = '🔥';
+          fireBtn.title = 'ガチイベ登録/管理';
+          fireBtn.onclick = (e) => handleFireClick(e, dateStr);
+          cellHeader.appendChild(fireBtn);
+        }
+
+        td.appendChild(cellHeader);
+
+        const passVal = passMap[dateStr] !== undefined ? passMap[dateStr] : state.initialSkipCount;
+        const passTag = document.createElement('div');
+        passTag.className = 'pass-count-tag';
+        passTag.textContent = `パス: ${passVal}枚`;
+        td.appendChild(passTag);
+
+        const inputsRow = document.createElement('div');
+        inputsRow.className = 'inputs-row';
+
+        const plusSelect = document.createElement('select');
+        plusSelect.className = 'select-plus';
+        plusSelect.onclick = (e) => e.stopPropagation();
+        
+        [0, 1, 2, 4, 6].forEach(val => {
+          const opt = document.createElement('option');
+          opt.value = val;
+          opt.textContent = `＋${val}`;
+          plusSelect.appendChild(opt);
+        });
+        plusSelect.value = state.plusData[dateStr] !== undefined ? state.plusData[dateStr] : 0;
+        plusSelect.onchange = (e) => {
+          state.plusData[dateStr] = parseInt(e.target.value, 10);
+          saveState();
+          render();
+        };
+
+        const skipLabel = document.createElement('label');
+        skipLabel.className = 'skip-label';
+        skipLabel.onclick = (e) => e.stopPropagation();
+        const skipCheck = document.createElement('input');
+        skipCheck.type = 'checkbox';
+        skipCheck.checked = !!state.skipsUsed[dateStr];
+        skipCheck.onchange = (e) => {
+          state.skipsUsed[dateStr] = e.target.checked;
+          saveState();
+          render();
+        };
+        skipLabel.appendChild(skipCheck);
+        skipLabel.appendChild(document.createTextNode('パス'));
+
+        inputsRow.appendChild(plusSelect);
+        inputsRow.appendChild(skipLabel);
+        td.appendChild(inputsRow);
+
+        const cellEvents = getEventsForDate(currDate);
+        cellEvents.forEach(evt => {
+          const evtTag = document.createElement('div');
+          evtTag.className = 'event-tag';
+          evtTag.textContent = `🔥${evt.name}`;
+          evtTag.title = `${evt.name} (${evt.startISO} 〜 ${evt.endISO})`;
+          td.appendChild(evtTag);
+        });
+
+        const memoArea = document.createElement('textarea');
+        memoArea.className = 'memo-input';
+        memoArea.placeholder = 'メモ';
+        memoArea.value = state.memos[dateStr] || '';
+        memoArea.onclick = (e) => e.stopPropagation();
+        memoArea.oninput = (e) => {
+          state.memos[dateStr] = e.target.value;
+          saveState();
+        };
+        td.appendChild(memoArea);
+
+        tr.appendChild(td);
+        currDate = addDays(currDate, 1);
+      }
+      body.appendChild(tr);
+    }
+
+    updateStatusArea();
+  }
+
+  function updateStatusArea() {
+    const blockInfo = getBlockInfoForDate(selectedTargetDate);
+
+    if (!blockInfo) {
+      document.getElementById('currentPeriodDisplay').textContent = '----/--/-- 〜 ----/--/--';
+      document.getElementById('currentKeepEndDisplay').textContent = '----/--/--';
+      document.getElementById('periodPlusSum').textContent = '＋0 (0ダイヤ)';
+      const judgeEl = document.getElementById('rankJudgement');
+      judgeEl.textContent = '判定対象外';
+      judgeEl.className = 'badge badge-down';
+      return;
+    }
+
+    document.getElementById('currentPeriodDisplay').textContent = 
+      `${formatDateStr(blockInfo.blockStart)} 〜 ${formatDateStr(blockInfo.extendedEnd)} (${blockInfo.rank})`;
+    document.getElementById('currentKeepEndDisplay').textContent = 
+      `${formatDateStr(blockInfo.extendedEnd)} (集計完了日)`;
+
+    const hourly = getHourlyDiamond(blockInfo.rank);
+    document.getElementById('periodPlusSum').textContent = `＋${blockInfo.plusSum} (${hourly.toLocaleString()}ダイヤ/h)`;
+
+    const judgeEl = document.getElementById('rankJudgement');
+    if (blockInfo.plusSum <= 11) {
+      const nextR = getPrevRank(blockInfo.rank);
+      judgeEl.textContent = `🔴 ランクダウン➔ 翌日から ${nextR}`;
+      judgeEl.className = 'badge badge-down';
+    } else if (blockInfo.plusSum <= 17) {
+      judgeEl.textContent = `🟢 ランクキープ (${blockInfo.rank})`;
+      judgeEl.className = 'badge badge-keep';
+    } else {
+      const nextR = getNextRank(blockInfo.rank);
+      judgeEl.textContent = `🔵 ランクアップ! ➔ 翌日から ${nextR}`;
+      judgeEl.className = 'badge badge-up';
+    }
+  }
+
+  function handleFireClick(e, dateStr) {
+    e.stopPropagation();
+    activeFireDate = dateStr;
+
+    const existing = state.events.find(evt => evt.fireDate === dateStr);
+    const modal = document.getElementById('eventModal');
+    const deleteBtn = document.getElementById('deleteEventBtn');
+
+    const fireDate = parseDateStr(dateStr);
+    const nextMon = addDays(fireDate, 6);
+
+    const startStr = `${formatDateStr(fireDate)} 19:00`;
+    const endStr = `${formatDateStr(nextMon)} 23:59`;
+
+    document.getElementById('eventStartDisplay').value = startStr;
+    document.getElementById('eventEndDisplay').value = endStr;
+
+    if (existing) {
+      activeEditingEventId = existing.id;
+      document.getElementById('modalTitle').textContent = 'ガチイベ編集/削除';
+      document.getElementById('eventNameInput').value = existing.name;
+      deleteBtn.style.display = 'inline-block';
+    } else {
+      activeEditingEventId = null;
+      document.getElementById('modalTitle').textContent = 'ガチイベ新規登録';
+      document.getElementById('eventNameInput').value = '';
+      deleteBtn.style.display = 'none';
+    }
+
+    modal.classList.remove('hidden');
+  }
+
+  function closeModal() {
+    document.getElementById('eventModal').classList.add('hidden');
+  }
+
+  function saveEventModal() {
+    const name = document.getElementById('eventNameInput').value.trim() || 'ガチイベ';
+    const startStr = document.getElementById('eventStartDisplay').value;
+    const endStr = document.getElementById('eventEndDisplay').value;
+
+    if (activeEditingEventId) {
+      const evt = state.events.find(e => e.id === activeEditingEventId);
+      if (evt) evt.name = name;
+    } else {
+      state.events.push({
+        id: Date.now().toString(),
+        fireDate: activeFireDate,
+        name: name,
+        startISO: startStr,
+        endISO: endStr
+      });
+    }
+
+    saveState();
+    closeModal();
+    render();
+  }
+
+  function deleteEventModal() {
+    if (activeEditingEventId) {
+      state.events = state.events.filter(e => e.id !== activeEditingEventId);
+      saveState();
+      closeModal();
+      render();
+    }
+  }
+
+  function getEventsForDate(date) {
+    const targetStr = formatDateStr(date);
+    return state.events.filter(evt => {
+      const sDate = evt.startISO.split(' ')[0];
+      const eDate = evt.endISO.split(' ')[0];
+      return targetStr >= sDate && targetStr <= eDate;
+    });
+  }
+
+  function saveAsPNG() {
+    const target = document.getElementById('captureTarget');
+    const showColors = document.getElementById('exportShowColors').checked;
+    const showPassInfo = document.getElementById('exportShowPassInfo').checked;
+
+    target.classList.add('capturing');
+    if (!showColors) target.classList.add('hide-block-colors');
+    if (!showPassInfo) target.classList.add('hide-pass-info');
+
+    html2canvas(target, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: null,
+      scrollX: 0,
+      scrollY: 0,
+      letterRendering: true,
+      foreignObjectRendering: false,
+      windowWidth: document.documentElement.offsetWidth,
+      onclone: (clonedDoc) => {
+        const clonedTarget = clonedDoc.getElementById('captureTarget');
+        clonedTarget.style.transform = 'none';
+
+        const selects = clonedTarget.querySelectorAll('.select-plus');
+        selects.forEach(sel => {
+          const val = sel.value;
+          const badge = clonedDoc.createElement('div');
+          badge.className = 'print-plus-badge';
+          badge.textContent = `＋${val}`;
+          sel.parentNode.replaceChild(badge, sel);
+        });
+
+        const skipLabels = clonedTarget.querySelectorAll('.skip-label');
+        skipLabels.forEach(lbl => {
+          const chk = lbl.querySelector('input[type="checkbox"]');
+          if (chk) {
+            const badge = clonedDoc.createElement('div');
+            badge.className = 'print-skip-badge';
+            badge.textContent = chk.checked ? '✓ パス' : 'パス';
+            if (!chk.checked) badge.style.opacity = '0.5';
+            lbl.parentNode.replaceChild(badge, lbl);
+          }
+        });
+      }
+    }).then(canvas => {
+      target.classList.remove('capturing');
+      target.classList.remove('hide-block-colors');
+      target.classList.remove('hide-pass-info');
+
+      const link = document.createElement('a');
+      link.download = `IRIAM_EventCalendar_${currentYear}-${currentMonth}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }).catch(err => {
+      target.classList.remove('capturing');
+      target.classList.remove('hide-block-colors');
+      target.classList.remove('hide-pass-info');
+      console.error('PNG export error:', err);
+    });
+  }
+</script>
+</body>
+</html>
